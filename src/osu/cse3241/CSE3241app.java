@@ -30,7 +30,7 @@ import java.sql.Statement;
  * <li><a href="http://www.sqlitetutorial.net/sqlite-java/">SQLite Java Tutorial</a></li>
  * </ul>
  *
- * <h2>MIT License</h2>
+ * <h2>MITx License</h2>
  *
  * <em>Copyright (c) 2019 Leon J. Madrid, Jeff Hachtel</em>
  * 
