@@ -70,7 +70,7 @@ public class CSE3241app {
 	 *  (Not all programming languages and/or packages require the semicolon (e.g., Python's SQLite3 library))
 	 */
 	private static String sqlStatement = "SELECT * FROM ACTOR;";
-	
+
     /**
      * Connects to the database if it exists, creates it if it does not, and returns the connection object.
      * 
@@ -110,11 +110,11 @@ public class CSE3241app {
 	 * @param read scanner object to get user input
 	 */
 	public static void getTracksBeforeYear(Connection conn, Scanner read) throws SQLException {
-        System.out.println("Enter an artist name: ");
-        String artistName = read.nextLine();
-        System.out.println("Enter a year(must be a number): ");
-        int year = read.nextInt();
-        read.nextLine();//clear input buffer
+		System.out.println("Enter an artist name: ");
+		String artistName = read.nextLine();
+		System.out.println("Enter a year(must be a number): ");
+		int year = read.nextInt();
+		read.nextLine();//clear input buffer
 		String sqlStatement = "SELECT Name, Title " +
 				"FROM FEATURES, TRACK, ARTIST " +
 				"WHERE FEATURES.Artist_Id=ARTIST.Artist_Id AND ARTIST.Name=? AND FEATURES.Track_Title=TRACK.Title AND TRACK.Year<?;";
@@ -154,6 +154,83 @@ public class CSE3241app {
 		try {
 			stmt = conn.prepareStatement(sqlStatement);
 			stmt.setInt(1, n);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
+	 * Get games checked out by patron
+	 * @param conn a connection object
+	 * @param read scanner object to get user input
+	 */
+	public static void getNumOfGamesCheckedOutByPatron(Connection conn, Scanner read) throws SQLException {
+		System.out.print("Enter patron's card id: ");
+		int n = read.nextInt();
+		read.nextLine(); //clear input buffer
+		String sqlStatement = "SELECT COUNT(M.Media_ID) as totalGames " +
+				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L " +
+				"WHERE P.Card_ID = C.Card_ID AND M.Media_Id = L.Media_Id AND L.Item_id = C.Item_Id " +
+				"AND M.Type_Of_Media = 'Game' AND P.Card_Id = ?;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
+			stmt.setInt(1, n);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
+	 * Displays the longest audiobook in the database along with its name and author.
+	 * @param conn a connection object
+	 */
+	public static void getLongestAudiobook(Connection conn) throws SQLException {
+		String sqlStatement = "SELECT M.Name, A.Name, Length " +
+				"FROM AUTHOR AS A, AUTHORS, MEDIA AS M " +
+				"WHERE A.Author_Id = AUTHORS.Author_Id AND M.Type_of_Media = 'Audiobook' AND " +
+				"M.Media_Id = AUTHORS.Audiobook_Id " +
+				"ORDER BY LENGTH DESC " +
+				"LIMIT 1;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
+	 * Retrieve the number of digital copies of every album in the library, along with the album and artist name.
+	 * @param conn a connection object
+	 */
+	public static void getNumOfDigitalAlbumsCopies(Connection conn) throws SQLException {
+		String sqlStatement = "SELECT M.Name, A.Name, COUNT(L.Is_Digital) AS Digital_Copies " +
+				"FROM MEDIA AS M, LIBRARY_ITEM AS L, ARTIST AS A, ALBUM AS AL " +
+				"WHERE M.Media_Id = L.Media_Id AND A.Artist_Id = AL.Artist_Id AND AL.Album_Id = " +
+				"M.Media_Id AND Type_of_Media = 'Album' AND L.Is_Digital=1 " +
+				"GROUP BY A.Name;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
 			rs = stmt.executeQuery();
 			printResults(rs);
 		} catch (SQLException e) {
