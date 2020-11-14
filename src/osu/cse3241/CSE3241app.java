@@ -1,12 +1,7 @@
 package osu.cse3241;
 
-import java.sql.DriverManager;
-import java.sql.DatabaseMetaData;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
+import java.util.Scanner;
 
 /**
  * <h1>CSE3241 Introduction to Database Systems - Sample Java application.</h1>
@@ -66,10 +61,10 @@ public class CSE3241app {
 	 *  
 	 *  Otherwise, you will need to provide an absolute path from your C: drive or a relative path from the folder this class is in.
 	 */
-	private static String DATABASE = "database_binary.db";
+	private static String DATABASE = "librarynewdb.db";
 	
 	/**
-	 *  The query statement to be executed.
+	 *  The query statement to be executed. 
 	 *  
 	 *  Remember to include the semicolon at the end of the statement string.
 	 *  (Not all programming languages and/or packages require the semicolon (e.g., Python's SQLite3 library))
@@ -108,40 +103,142 @@ public class CSE3241app {
         }
         return conn;
     }
-    
-    /**
+
+	/**
+	 * Queries the tracks released by an artist before a year
+	 * @param conn a connection object
+	 * @param read scanner object to get user input
+	 */
+	public static void getTracksBeforeYear(Connection conn, Scanner read) throws SQLException {
+        System.out.println("Enter an artist name: ");
+        String artistName = read.nextLine();
+        System.out.println("Enter a year(must be a number): ");
+        int year = read.nextInt();
+        read.nextLine();//clear input buffer
+		String sqlStatement = "SELECT Name, Title " +
+				"FROM FEATURES, TRACK, ARTIST " +
+				"WHERE FEATURES.Artist_Id=ARTIST.Artist_Id AND ARTIST.Name=? AND FEATURES.Track_Title=TRACK.Title AND TRACK.Year<?;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
+			stmt.setString(1, artistName);
+			stmt.setInt(2, year);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
+	 * List all the albums and their unique identifiers with less than n copies held by the library.
+	 * @param conn a connection object
+	 * @param read scanner object to get user input
+	 */
+	public static void getAlbumCopies(Connection conn, Scanner read) throws SQLException {
+		System.out.println("This query will list the albums that have fewer than n copies, where n is a parameter you provide.");
+		System.out.print("Enter n: ");
+		int n = read.nextInt();
+		read.nextLine(); //clear input buffer
+		String sqlStatement = "SELECT Media_ID, Name, COUNT(M.Name) as Count\n" +
+				"FROM MEDIA AS M\n" +
+				"WHERE Type_of_Media='Album'\n" +
+				"GROUP BY M.Name\n" +
+				"HAVING Count < ?;\n";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
+			stmt.setInt(1, n);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
+	 * Takes result set object and prints it
+	 * @param rs result set to print
+	 */
+	public static void printResults(ResultSet rs) throws SQLException {
+		try{
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int columnCount = rsmd.getColumnCount();
+			for (int i = 1; i <= columnCount; i++) {
+				String value = rsmd.getColumnName(i);
+				System.out.print(value);
+				if (i < columnCount) System.out.print(",  ");
+			}
+			System.out.print("\n");
+			while (rs.next()) {
+				for (int i = 1; i <= columnCount; i++) {
+					String columnValue = rs.getString(i);
+					System.out.print(columnValue);
+					if (i < columnCount) System.out.print(",  ");
+				}
+				System.out.print("\n");
+			}
+		}catch (SQLException e) {
+			System.out.println(e.getMessage());
+		}
+	}
+
+	/**
      * Queries the database and prints the results.
      * 
      * @param conn a connection object
      * @param sql a SQL statement that returns rows
      */
-    public static void sqlQuery(Connection conn, String sql){
+    public static void sqlQuery(Connection conn, String sql) throws SQLException {
+    	PreparedStatement stmt = null;
+    	ResultSet rs = null;
         try {
-        	Statement stmt = conn.createStatement();
-        	ResultSet rs = stmt.executeQuery(sql);
-        	ResultSetMetaData rsmd = rs.getMetaData();
-        	int columnCount = rsmd.getColumnCount();
-        	for (int i = 1; i <= columnCount; i++) {
-        		String value = rsmd.getColumnName(i);
-        		System.out.print(value);
-        		if (i < columnCount) System.out.print(",  ");
-        	}
-			System.out.print("\n");
-        	while (rs.next()) {
-        		for (int i = 1; i <= columnCount; i++) {
-        			String columnValue = rs.getString(i);
-            		System.out.print(columnValue);
-            		if (i < columnCount) System.out.print(",  ");
-        		}
-    			System.out.print("\n");
-        	}
+        	stmt = conn.prepareStatement(sql);
+        	rs = stmt.executeQuery();
+        	printResults(rs);
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+			System.out.println(e.getMessage());
+		} finally {
+        	if(rs != null) {rs.close();}
+        	if(stmt != null) {stmt.close();}
+		}
     }
 
     public static void main(String[] args) {
     	Connection conn = initializeDB(DATABASE);
-    	sqlQuery(conn, sqlStatement);
-    }
+    	Scanner userInput = new Scanner(System.in);
+    	System.out.println("Welcome to our application. Enter the corresponding integer to the query you want to run. \n");
+    	System.out.println("1. Find the titles of all tracks by ARTIST released before YEAR");
+		System.out.println("2. List all the albums and their unique identifiers with less than N copies held by the library.");
+		System.out.println("3. Select all actors.");
+		System.out.println("Enter the corresponding number: ");
+		int choice = userInput.nextInt();
+		userInput.nextLine();
+		try {
+			switch(choice) {
+				case 1:
+					getTracksBeforeYear(conn, userInput);
+					break;
+				case 2:
+					getAlbumCopies(conn, userInput);
+					break;
+				case 3:
+					sqlQuery(conn, sqlStatement);
+					break;
+				default:
+					System.out.println("Incorrect input");
+			}
+		} catch (SQLException e) {
+			e.getMessage();
+		}
+
+	}
 }
