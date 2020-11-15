@@ -165,6 +165,34 @@ public class CSE3241app {
 	}
 
 	/**
+	 * Get albums checked out by patron
+	 * @param conn a connection object
+	 * @param read scanner object to get user input
+	 */
+	public static void getNumOfAlbumsCheckedOutByPatron(Connection conn, Scanner read) throws SQLException {
+		System.out.print("Enter patron's card id: ");
+		int n = read.nextInt();
+		read.nextLine(); //clear input buffer
+		String sqlStatement = "SELECT COUNT(M.Media_ID) as totalAlbums " +
+				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L " +
+				"WHERE P.Card_ID = C.Card_ID AND M.Media_Id = L.Media_Id AND L.Item_id = C.Item_Id " +
+				"AND M.Type_Of_Media = 'Album' AND P.Card_Id = ?;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sqlStatement);
+			stmt.setInt(1, n);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
 	 * Get games checked out by patron
 	 * @param conn a connection object
 	 * @param read scanner object to get user input
@@ -197,12 +225,11 @@ public class CSE3241app {
 	 * @param conn a connection object
 	 */
 	public static void getLongestAudiobook(Connection conn) throws SQLException {
-		String sqlStatement = "SELECT M.Name, A.Name, Length " +
-				"FROM AUTHOR AS A, AUTHORS, MEDIA AS M " +
-				"WHERE A.Author_Id = AUTHORS.Author_Id AND M.Type_of_Media = 'Audiobook' AND " +
-				"M.Media_Id = AUTHORS.Audiobook_Id " +
-				"ORDER BY LENGTH DESC " +
-				"LIMIT 1;";
+		String sqlStatement = "SELECT M.Name, A.Name AS Author, Length AS Length_in_mins\n" +
+				"FROM AUTHOR AS A, AUTHORS, MEDIA AS M\n" +
+				"WHERE A.Author_Id = AUTHORS.Author_Id AND M.Type_of_Media = 'Audiobook' AND M.Media_Id = AUTHORS.Audiobook_Id\n" +
+				"ORDER BY LENGTH DESC\n" +
+				"LIMIT 1;\n";
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
@@ -241,6 +268,22 @@ public class CSE3241app {
 		}
 	}
 
+	/**
+	 * Insert a new audiobook into the database
+	 * @param conn a connection object
+	 * @param read scanner object to get user input
+	 */
+	public static void insertAudiobook(Connection conn, Scanner read) throws SQLException {
+		//get max audiobook_id from AUDIOBOOK table and add 1 to it for the new audiobook(might not need to do this if we can figure out how to do auto-increment?);
+		//list current narrators
+		//ask which narrator to select
+		//get values for MEDIA entry
+		//get values for AUDIOBOOK entry
+		//create media entry, then audiobook entry(using narrator they provide)
+		//list current authors
+		//ask them to select which authors contributed to the audiobook
+		//add relevant authors to AUTHORS table along with audiobook ID.
+	}
 	/**
 	 * Takes result set object and prints it
 	 * @param rs result set to print
@@ -292,10 +335,15 @@ public class CSE3241app {
     public static void main(String[] args) {
     	Connection conn = initializeDB(DATABASE);
     	Scanner userInput = new Scanner(System.in);
-    	System.out.println("Welcome to our application. Enter the corresponding integer to the query you want to run. \n");
+    	System.out.println("\nWelcome to our application. Enter the corresponding integer to the query you want to run. \n");
     	System.out.println("1. Find the titles of all tracks by ARTIST released before YEAR");
 		System.out.println("2. List all the albums and their unique identifiers with less than N copies held by the library.");
 		System.out.println("3. Select all actors.");
+		System.out.println("4. Get number of albums checked out by a patron.");
+		System.out.println("5. Insert a new audiobook.");
+		System.out.println("6. Get number of games checked out by a patron.");
+		System.out.println("7. Retrieve the number of digital copies of every album in the library, along with the album and artist name.");
+		System.out.println("8. Display the longest audiobook in the database along with its name and author.");
 		System.out.println("Enter the corresponding number: ");
 		int choice = userInput.nextInt();
 		userInput.nextLine();
@@ -309,6 +357,20 @@ public class CSE3241app {
 					break;
 				case 3:
 					sqlQuery(conn, sqlStatement);
+					break;
+				case 4:
+					getNumOfAlbumsCheckedOutByPatron(conn, userInput);
+					break;
+				case 5:
+					insertAudiobook(conn, userInput);
+				case 6:
+					getNumOfGamesCheckedOutByPatron(conn, userInput);
+					break;
+				case 7:
+					getNumOfDigitalAlbumsCopies(conn);
+					break;
+				case 8:
+					getLongestAudiobook(conn);
 					break;
 				default:
 					System.out.println("Incorrect input");
