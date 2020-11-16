@@ -492,6 +492,7 @@ public class CSE3241app {
 					break;
 				case 5:
 					insertAudiobook(conn, userInput);
+					break;
 				case 6:
 					getNumOfGamesCheckedOutByPatron(conn, userInput);
 					break;
