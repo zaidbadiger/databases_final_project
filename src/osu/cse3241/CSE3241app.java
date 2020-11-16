@@ -282,7 +282,7 @@ public class CSE3241app {
 		ResultSet rs = sqlQuery(conn, query);
 		int id;
 		if (rs.next()) {
-			id = rs.getInt(0) + 1;
+			id = rs.getInt(1) + 1;
 			if (id > MAX_AUDIOBOOK_ID) {
 				System.out.println("Too many audiobooks!"); // TODO: More robust fix
 				return;
@@ -293,33 +293,21 @@ public class CSE3241app {
 		rs.close();
 
 		//list current narrators
-		query = "SELECT Name " +
-				"FROM NARRATOR" +
+		query = "SELECT Name, Narrator_Id " +
+				"FROM NARRATOR " +
 				"ORDER BY Narrator_Id;";
 		rs = sqlQuery(conn, query);
 		printResults(rs);
 		rs.close();
 
 		//ask which narrator to select
-		System.out.println("Enter the id of the narrator you want (Enter -1 for a new narrator [WIP])."); // TODO: These two WIPs
+		System.out.print("Enter the id of the narrator you want (Enter -1 for a new narrator [WIP]). : "); // TODO: These two WIPs
 		int narrId = read.nextInt();
 		read.nextLine();
 
-		//list current authors
-		query = "SELECT Name " +
-				"FROM AUTHOR" +
-				"ORDER BY Author_Id;";
-		rs = sqlQuery(conn, query);
-		printResults(rs);
-		rs.close();
-
-		//ask them to select which authors contributed to the audiobook
-		System.out.println("Enter the id of the author you want (Enter -1 for a new author [WIP])."); // TODO: ^
-		int authId = read.nextInt();
-		read.nextLine();
 
 		//get values for MEDIA entry
-		System.out.println("Enter the following information:");
+		System.out.println("Enter the following information for the audiobook:");
 		System.out.print("Name: ");
 		String name = read.nextLine();
 		System.out.print("Genre: ");
@@ -331,16 +319,10 @@ public class CSE3241app {
 		int length = read.nextInt();
 		read.nextLine();
 
-		//get values for AUDIOBOOK entry
-		System.out.print("Chapters: ");
-		int chapters = read.nextInt();
-		read.nextLine();
-
 		//create media entry, then audiobook entry(using narrator they provide)
 		query = "INSERT INTO MEDIA " +
 				"VALUES (?, ?, ?, ?, ?, ?);";
 		PreparedStatement stmt = null;
-		rs = null;
 		try {
 			stmt = conn.prepareStatement(query);
 			stmt.setInt(1, id);
@@ -349,49 +331,63 @@ public class CSE3241app {
 			stmt.setInt(4, year);
 			stmt.setInt(5, length);
 			stmt.setString(6, "Audiobook");
-			rs = stmt.executeQuery();
-			printResults(rs);
+			stmt.executeUpdate();
+
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 		} finally {
-			if(rs != null) {rs.close();}
 			if(stmt != null) {stmt.close();}
 		}
 
 		query = "INSERT INTO AUDIOBOOK " +
-				"VALUES (?, ?, ?);";
+				"VALUES (?, ?);";
 		stmt = null;
-		rs = null;
-		try {
+				try {
 			stmt = conn.prepareStatement(query);
 			stmt.setInt(1, id);
-			stmt.setInt(2, chapters);
-			stmt.setInt(3, narrId);
-			rs = stmt.executeQuery();
-			printResults(rs);
+			stmt.setInt(2, narrId);
+			stmt.executeUpdate();
+
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 		} finally {
-			if(rs != null) {rs.close();}
 			if(stmt != null) {stmt.close();}
 		}
 
-		//add relevant authors to AUTHORS table along with audiobook ID.
+		//list current authors
+		query = "SELECT Name, Author_Id " +
+				"FROM AUTHOR " +
+				"ORDER BY Author_Id;";
+		rs = sqlQuery(conn, query);
+		printResults(rs);
+		rs.close();
+
+		//ask them to select which authors contributed to the audiobook
+		System.out.print("How many authors does this book have? Enter an integer: ");
+		int numAuthors = read.nextInt();
+		read.nextLine();
+		int[] authorIds = new int[numAuthors];
 		query = "INSERT INTO AUTHORS " +
 				"VALUES (?, ?);";
-		stmt = null;
-		rs = null;
-		try {
-			stmt = conn.prepareStatement(query);
-			stmt.setInt(1, id);
-			stmt.setInt(2, authId);
-			rs = stmt.executeQuery();
-			printResults(rs);
-		} catch (SQLException e) {
-			System.out.println(e.getMessage());
-		} finally {
-			if(rs != null) {rs.close();}
-			if(stmt != null) {stmt.close();}
+		for(int i=0; i<numAuthors; i++) {
+			System.out.println("Enter the id of the author you want, make sure not to repeat authors (Enter -1 for a new author [WIP])."); // TODO: ^
+			authorIds[i] = read.nextInt();
+			read.nextLine();
+			stmt = null;
+			//add relevant authors to AUTHORS table along with audiobook ID.
+			try {
+				stmt = conn.prepareStatement(query);
+				stmt.setInt(1, id);
+				stmt.setInt(2, authorIds[i]);
+				stmt.executeUpdate();
+				}
+			catch (SQLException e) {
+				System.out.println(e.getMessage());
+			} finally {
+				if (stmt != null) {
+					stmt.close();
+				}
+			}
 		}
 	}
 
