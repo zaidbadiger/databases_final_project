@@ -62,14 +62,16 @@ public class CSE3241app {
 	 *  Otherwise, you will need to provide an absolute path from your C: drive or a relative path from the folder this class is in.
 	 */
 	private static String DATABASE = "librarynewdb.db";
-	
-	/**
-	 *  The query statement to be executed. 
-	 *  
-	 *  Remember to include the semicolon at the end of the statement string.
-	 *  (Not all programming languages and/or packages require the semicolon (e.g., Python's SQLite3 library))
-	 */
-	private static String sqlStatement = "SELECT * FROM ACTOR;";
+
+	private static final int MAX_AUDIOBOOK_ID = 999;
+	private static final int MAX_MOVIE_ID = 1999;
+	private static final int MAX_GAME_ID = 2999;
+	private static final int MAX_ALBUM_ID = 3999;
+
+	private static final int MIN_AUDIOBOOK_ID = 0;
+	private static final int MIN_MOVIE_ID = 1000;
+	private static final int MIN_GAME_ID = 2000;
+	private static final int MIN_ALBUM_ID = 3000;
 
     /**
      * Connects to the database if it exists, creates it if it does not, and returns the connection object.
@@ -275,15 +277,124 @@ public class CSE3241app {
 	 */
 	public static void insertAudiobook(Connection conn, Scanner read) throws SQLException {
 		//get max audiobook_id from AUDIOBOOK table and add 1 to it for the new audiobook(might not need to do this if we can figure out how to do auto-increment?);
+		String query = "SELECT MAX(Audiobook_Id) " +
+				"FROM AUDIOBOOK;";
+		ResultSet rs = sqlQuery(conn, query);
+		int id;
+		if (rs.next()) {
+			id = rs.getInt(0) + 1;
+			if (id > MAX_AUDIOBOOK_ID) {
+				System.out.println("Too many audiobooks!"); // TODO: More robust fix
+				return;
+			}
+		} else {
+			id = MIN_AUDIOBOOK_ID;
+		}
+		rs.close();
+
 		//list current narrators
+		query = "SELECT Name " +
+				"FROM NARRATOR" +
+				"ORDER BY Narrator_Id;";
+		rs = sqlQuery(conn, query);
+		printResults(rs);
+		rs.close();
+
 		//ask which narrator to select
-		//get values for MEDIA entry
-		//get values for AUDIOBOOK entry
-		//create media entry, then audiobook entry(using narrator they provide)
+		System.out.println("Enter the id of the narrator you want (Enter -1 for a new narrator [WIP])."); // TODO: These two WIPs
+		int narrId = read.nextInt();
+		read.nextLine();
+
 		//list current authors
+		query = "SELECT Name " +
+				"FROM AUTHOR" +
+				"ORDER BY Author_Id;";
+		rs = sqlQuery(conn, query);
+		printResults(rs);
+		rs.close();
+
 		//ask them to select which authors contributed to the audiobook
+		System.out.println("Enter the id of the author you want (Enter -1 for a new author [WIP])."); // TODO: ^
+		int authId = read.nextInt();
+		read.nextLine();
+
+		//get values for MEDIA entry
+		System.out.println("Enter the following information:");
+		System.out.print("Name: ");
+		String name = read.nextLine();
+		System.out.print("Genre: ");
+		String genre = read.nextLine();
+		System.out.print("Year: ");
+		int year = read.nextInt();
+		read.nextLine();
+		System.out.print("Length: ");
+		int length = read.nextInt();
+		read.nextLine();
+
+		//get values for AUDIOBOOK entry
+		System.out.print("Chapters: ");
+		int chapters = read.nextInt();
+		read.nextLine();
+
+		//create media entry, then audiobook entry(using narrator they provide)
+		query = "INSERT INTO MEDIA " +
+				"VALUES (?, ?, ?, ?, ?, ?);";
+		PreparedStatement stmt = null;
+		rs = null;
+		try {
+			stmt = conn.prepareStatement(query);
+			stmt.setInt(1, id);
+			stmt.setString(2, name);
+			stmt.setString(3, genre);
+			stmt.setInt(4, year);
+			stmt.setInt(5, length);
+			stmt.setString(6, "Audiobook");
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+
+		query = "INSERT INTO AUDIOBOOK " +
+				"VALUES (?, ?, ?);";
+		stmt = null;
+		rs = null;
+		try {
+			stmt = conn.prepareStatement(query);
+			stmt.setInt(1, id);
+			stmt.setInt(2, chapters);
+			stmt.setInt(3, narrId);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+
 		//add relevant authors to AUTHORS table along with audiobook ID.
+		query = "INSERT INTO AUTHORS " +
+				"VALUES (?, ?);";
+		stmt = null;
+		rs = null;
+		try {
+			stmt = conn.prepareStatement(query);
+			stmt.setInt(1, id);
+			stmt.setInt(2, authId);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
 	}
+
 	/**
 	 * Takes result set object and prints it
 	 * @param rs result set to print
@@ -312,24 +423,42 @@ public class CSE3241app {
 	}
 
 	/**
+	 * Prints out the list of actors
+	 *
+	 * @param conn a connection object
+	 */
+	public static void getActors(Connection conn) throws SQLException {
+		String sql = "SELECT * FROM ACTOR;";
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			rs = stmt.executeQuery();
+			printResults(rs);
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(rs != null) {rs.close();}
+			if(stmt != null) {stmt.close();}
+		}
+	}
+
+	/**
      * Queries the database and prints the results.
      * 
      * @param conn a connection object
      * @param sql a SQL statement that returns rows
      */
-    public static void sqlQuery(Connection conn, String sql) throws SQLException {
+    public static ResultSet sqlQuery(Connection conn, String sql) throws SQLException {
     	PreparedStatement stmt = null;
     	ResultSet rs = null;
         try {
         	stmt = conn.prepareStatement(sql);
         	rs = stmt.executeQuery();
-        	printResults(rs);
         } catch (SQLException e) {
 			System.out.println(e.getMessage());
-		} finally {
-        	if(rs != null) {rs.close();}
-        	if(stmt != null) {stmt.close();}
 		}
+        return rs;
     }
 
     public static void main(String[] args) {
@@ -356,7 +485,7 @@ public class CSE3241app {
 					getAlbumCopies(conn, userInput);
 					break;
 				case 3:
-					sqlQuery(conn, sqlStatement);
+					getActors(conn);
 					break;
 				case 4:
 					getNumOfAlbumsCheckedOutByPatron(conn, userInput);
