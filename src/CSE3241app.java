@@ -1,6 +1,6 @@
-package osu.cse3241;
-
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -269,6 +269,74 @@ public class CSE3241app {
 			if(stmt != null) {stmt.close();}
 		}
 	}
+	/**
+	 * Get all of the Ids and names in a table by passing a ResultSet(Narrator, Author, Director, etc...)
+	 * @param rs a ResultSet object on a query that returns all names from a table
+	 */
+	public static List<Contributor> getIdAndNames(ResultSet rs) throws SQLException {
+		List<Contributor> names = new ArrayList<Contributor>();
+		try{
+			while (rs.next()) {
+				Contributor contributor = new Contributor();
+				contributor.Id=rs.getInt(1);
+				contributor.name=rs.getString(2);
+				names.add(contributor);
+			}
+		}catch (SQLException e) {
+			System.out.println(e.getMessage());
+		}
+		return names;
+	}
+
+	/**
+	 * NOTE: NOT AN AUTHOR, PERTAINS TO "AUTHORS" TABLE
+	 * Insert a new authors row into the database
+	 * @param conn a connection object
+	 * @param audiobookId
+	 * @param authorId
+	 * @param
+	 */
+	public static void insertAuthors(Connection conn, int audiobookId, int authorId) throws SQLException {
+		String query = "INSERT INTO AUTHORS " +
+				" VALUES (?, ?);";
+		PreparedStatement stmt = null;
+		try {
+			stmt = conn.prepareStatement(query);
+			stmt.setInt(1, audiobookId);
+			stmt.setInt(2, authorId);
+			stmt.executeUpdate();
+			System.out.println("Successfully added to AUTHORS table");
+
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(stmt != null) {stmt.close();}
+		}
+	}
+	/**
+	 * Insert a new narrator into the database
+	 * @param conn a connection object
+	 * @param tableName name of table
+	 * @param name name of contributor
+	 * @param
+	 */
+	public static void insertContributor(Connection conn, String tableName, String name, int Id) throws SQLException {
+		String query = "INSERT INTO " + tableName +
+				" VALUES (?, ?);";
+		PreparedStatement stmt = null;
+		try {
+			stmt = conn.prepareStatement(query);
+			stmt.setString(1, name);
+			stmt.setInt(2, Id);
+			stmt.executeUpdate();
+			System.out.println("Successfully added contributor");
+
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+		} finally {
+			if(stmt != null) {stmt.close();}
+		}
+	}
 
 	/**
 	 * Insert a new audiobook into the database
@@ -276,7 +344,7 @@ public class CSE3241app {
 	 * @param read scanner object to get user input
 	 */
 	public static void insertAudiobook(Connection conn, Scanner read) throws SQLException {
-		//get max audiobook_id from AUDIOBOOK table and add 1 to it for the new audiobook(might not need to do this if we can figure out how to do auto-increment?);
+		conn.setAutoCommit(false);
 		String query = "SELECT MAX(Audiobook_Id) " +
 				"FROM AUDIOBOOK;";
 		ResultSet rs = sqlQuery(conn, query);
@@ -284,7 +352,7 @@ public class CSE3241app {
 		if (rs.next()) {
 			id = rs.getInt(1) + 1;
 			if (id > MAX_AUDIOBOOK_ID) {
-				System.out.println("Too many audiobooks!"); // TODO: More robust fix
+				System.out.println("Too many audiobooks!");
 				return;
 			}
 		} else {
@@ -293,17 +361,40 @@ public class CSE3241app {
 		rs.close();
 
 		//list current narrators
-		query = "SELECT Name, Narrator_Id " +
-				"FROM NARRATOR " +
-				"ORDER BY Narrator_Id;";
+		//save current narrators in a list
+		query = "SELECT Narrator_Id, Name " +
+				"FROM NARRATOR;";
 		rs = sqlQuery(conn, query);
-		printResults(rs);
+		List<Contributor> narrators = getIdAndNames(rs);
 		rs.close();
 
 		//ask which narrator to select
-		System.out.print("Enter the id of the narrator you want (Enter -1 for a new narrator [WIP]). : "); // TODO: These two WIPs
-		int narrId = read.nextInt();
-		read.nextLine();
+		System.out.print("Enter the name of the narrator for the audiobook : ");
+		String narratorName = read.nextLine();
+		int narratorId=-1;
+		//check if narrator already exists, if not, insert narrator
+		//save narratorId
+		for (Contributor narrator : narrators) {
+			if (narrator.name.equals(narratorName)) {
+				System.out.println("Wonderful, the narrator already exists in the database");
+				narratorId = narrator.Id;
+				break;
+			}
+		}
+		if(narratorId==-1){//add narrator and save Id
+			//get narrator Id
+			query = "SELECT MAX(Narrator_Id) " +
+					"FROM NARRATOR;";
+			ResultSet maxSet = sqlQuery(conn, query);
+			if (maxSet.next()) {
+				narratorId = maxSet.getInt(1) + 1;
+			} else {
+				narratorId = 0;
+			}
+			maxSet.close();
+			//add narrator
+			insertContributor(conn, "NARRATOR", narratorName, narratorId);
+		}
 
 
 		//get values for MEDIA entry
@@ -315,7 +406,7 @@ public class CSE3241app {
 		System.out.print("Year: ");
 		int year = read.nextInt();
 		read.nextLine();
-		System.out.print("Length: ");
+		System.out.print("Length in minutes as an integer: ");
 		int length = read.nextInt();
 		read.nextLine();
 
@@ -345,7 +436,7 @@ public class CSE3241app {
 				try {
 			stmt = conn.prepareStatement(query);
 			stmt.setInt(1, id);
-			stmt.setInt(2, narrId);
+			stmt.setInt(2, narratorId);
 			stmt.executeUpdate();
 
 		} catch (SQLException e) {
@@ -354,41 +445,51 @@ public class CSE3241app {
 			if(stmt != null) {stmt.close();}
 		}
 
-		//list current authors
-		query = "SELECT Name, Author_Id " +
-				"FROM AUTHOR " +
-				"ORDER BY Author_Id;";
-		rs = sqlQuery(conn, query);
-		printResults(rs);
-		rs.close();
 
 		//ask them to select which authors contributed to the audiobook
 		System.out.print("How many authors does this book have? Enter an integer: ");
 		int numAuthors = read.nextInt();
 		read.nextLine();
-		int[] authorIds = new int[numAuthors];
-		query = "INSERT INTO AUTHORS " +
-				"VALUES (?, ?);";
+		String authorName;
+		//save current authors in a list
+		query = "SELECT Author_Id, Name " +
+				"FROM AUTHOR;";
+		rs = sqlQuery(conn, query);
+		List<Contributor> authors = getIdAndNames(rs);
+		rs.close();
+		int authorId;
 		for(int i=0; i<numAuthors; i++) {
-			System.out.println("Enter the id of the author you want, make sure not to repeat authors (Enter -1 for a new author [WIP])."); // TODO: ^
-			authorIds[i] = read.nextInt();
-			read.nextLine();
-			stmt = null;
-			//add relevant authors to AUTHORS table along with audiobook ID.
-			try {
-				stmt = conn.prepareStatement(query);
-				stmt.setInt(1, id);
-				stmt.setInt(2, authorIds[i]);
-				stmt.executeUpdate();
-				}
-			catch (SQLException e) {
-				System.out.println(e.getMessage());
-			} finally {
-				if (stmt != null) {
-					stmt.close();
+			System.out.print("Enter the name of an author that contributed to the book, make sure not to repeat authors: ");
+			authorName = read.nextLine();
+			authorId=-1;
+			//check if author already exists, if not, insert author
+			//save authorId
+			for (Contributor author : authors) {
+				if (author.name.equals(authorName)) {
+					System.out.println("Wonderful, the author already exists in the database");
+					authorId = author.Id;
+					break;
 				}
 			}
+			if(authorId==-1){//add author and save Id
+				//get author Id
+				query = "SELECT MAX(Author_Id) " +
+						"FROM AUTHOR;";
+				ResultSet maxSet = sqlQuery(conn, query);
+				if (maxSet.next()) {
+					authorId = maxSet.getInt(1) + 1;
+				} else {
+					authorId = 0; //no authors in db
+				}
+				maxSet.close();
+				//add author
+				insertContributor(conn, "AUTHOR", authorName, authorId);
+			}
+			//create authors entry
+			insertAuthors(conn, id, authorId);
 		}
+		conn.commit();
+		conn.setAutoCommit(true);
 	}
 
 	/**
