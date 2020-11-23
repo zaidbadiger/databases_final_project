@@ -61,7 +61,7 @@ public class CSE3241app {
 	 *  
 	 *  Otherwise, you will need to provide an absolute path from your C: drive or a relative path from the folder this class is in.
 	 */
-	private static String DATABASE = "librarynewdb.db";
+	private static String DATABASE = "Library_Database.db";
 
 	private static final int MAX_AUDIOBOOK_ID = 999;
 	private static final int MAX_MOVIE_ID = 1999;
@@ -146,10 +146,10 @@ public class CSE3241app {
 		System.out.print("Enter n: ");
 		int n = read.nextInt();
 		read.nextLine(); //clear input buffer
-		String sqlStatement = "SELECT Media_ID, Name, COUNT(M.Name) as Count\n" +
-				"FROM MEDIA AS M\n" +
-				"WHERE Type_of_Media='Album'\n" +
-				"GROUP BY M.Name\n" +
+		String sqlStatement = "SELECT M.Media_ID, Name, COUNT(L.Media_Id) as Count\n" +
+				"FROM MEDIA AS M, LIBRARY_ITEM AS L\n" +
+				"WHERE L.Media_Id=M.Media_Id AND M.Type_of_Media='Album'\n" +
+				"GROUP BY L.Media_Id\n" +
 				"HAVING Count < ?;\n";
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
@@ -175,10 +175,9 @@ public class CSE3241app {
 		System.out.print("Enter patron's card id: ");
 		int n = read.nextInt();
 		read.nextLine(); //clear input buffer
-		String sqlStatement = "SELECT COUNT(M.Media_ID) as totalAlbums " +
-				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L " +
-				"WHERE P.Card_ID = C.Card_ID AND M.Media_Id = L.Media_Id AND L.Item_id = C.Item_Id " +
-				"AND M.Type_Of_Media = 'Album' AND P.Card_Id = ?;";
+		String sqlStatement = "SELECT P.First_Name, P.Card_Id, COUNT(L.Media_ID) as totalAlbumsCheckedOut\n" +
+				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L\n" +
+				"WHERE P.Card_ID = C.Card_ID AND C.Item_Id=L.Item_Id AND L.Media_ID = M.Media_ID AND M.Type_Of_Media = 'Album' AND C.Card_Id = ?;\n";
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
@@ -203,10 +202,9 @@ public class CSE3241app {
 		System.out.print("Enter patron's card id: ");
 		int n = read.nextInt();
 		read.nextLine(); //clear input buffer
-		String sqlStatement = "SELECT COUNT(M.Media_ID) as totalGames " +
-				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L " +
-				"WHERE P.Card_ID = C.Card_ID AND M.Media_Id = L.Media_Id AND L.Item_id = C.Item_Id " +
-				"AND M.Type_Of_Media = 'Game' AND P.Card_Id = ?;";
+		String sqlStatement = "SELECT P.First_Name, P.Card_Id, COUNT(M.Media_ID) as totalGames\n" +
+				"FROM CHECK_OUT AS C, PATRON AS P, MEDIA AS M, LIBRARY_ITEM AS L\n" +
+				"WHERE P.Card_ID = C.Card_ID AND M.Media_Id = L.Media_Id AND L.Item_id = C.Item_Id AND M.Type_Of_Media = 'Game' AND P.Card_Id = ?;\n";
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
@@ -251,11 +249,10 @@ public class CSE3241app {
 	 * @param conn a connection object
 	 */
 	public static void getNumOfDigitalAlbumsCopies(Connection conn) throws SQLException {
-		String sqlStatement = "SELECT M.Name, A.Name, COUNT(L.Is_Digital) AS Digital_Copies " +
-				"FROM MEDIA AS M, LIBRARY_ITEM AS L, ARTIST AS A, ALBUM AS AL " +
-				"WHERE M.Media_Id = L.Media_Id AND A.Artist_Id = AL.Artist_Id AND AL.Album_Id = " +
-				"M.Media_Id AND Type_of_Media = 'Album' AND L.Is_Digital=1 " +
-				"GROUP BY A.Name;";
+		String sqlStatement = "SELECT M.Name AS Media_Name, A.Name AS Artist_Name, COUNT(L.Is_Digital) AS Digital_Copies\n" +
+				"FROM MEDIA AS M, LIBRARY_ITEM AS L, ARTIST AS A, ALBUM AS AL\n" +
+				"WHERE M.Media_Id = L.Media_Id AND A.Artist_Id = AL.Artist_Id AND AL.Album_Id = M.Media_Id AND Type_of_Media = 'Album' AND L.Is_Digital=1\n" +
+				"GROUP BY A.Name;\n";
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try {
